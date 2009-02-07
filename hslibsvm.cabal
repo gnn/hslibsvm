@@ -1,0 +1,23 @@
+Name:               hslibsvm
+Version:            2.88
+Cabal-Version:      >= 1.6.0.1
+Build-Type:         Simple
+License:            BSD3
+License-File:       LICENSE
+Data-Files:         README
+Author:             Stephan Günther
+Maintainer:         Stephan Günther <gnn.github@gmail.com>
+Category:           Datamining, Classification
+Synopsis:           A FFI binding to libsvm.
+Description:
+  This is a FFI binding to libsvm. The version number represents the version
+  of libsvm this binding corresponds to. Further information on libsvm can
+  be found on its website: <http://www.csie.ntu.edu.tw/~cjlin/libsvm/>.
+
+Library
+  Build-Depends:   base, rts 
+  Exposed-Modules: Data.Datamining.Classification.LibSVM.C
+
+  GHC-Options:     
+  Extensions:       ForeignFunctionInterface
+

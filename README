@@ -1,0 +1,10 @@
+This is a haskell binding to "LIBSVM -- A Library for Support Vector Machines"
+which is obtainable throug their website: 
+  http://www.csie.ntu.edu.tw/~cjlin/libsvm
+The library is itself written in C++ with its interface exposed via C. 
+You need to have the library installed for this binding to be install work 
+correctly.
+LibSVM itself and this binding are licensed under a modified BSD-Style license.
+You should have received a LICENSE file along with this source code.
+All the code contained in this bundles is licensed under that license.
+
