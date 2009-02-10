@@ -15,9 +15,10 @@ Description:
   be found on its website: <http://www.csie.ntu.edu.tw/~cjlin/libsvm/>.
 
 Library
-  Build-Depends:   base, rts 
-  Exposed-Modules: Data.Datamining.Classification.LibSVM.C
-
+  Build-Depends:    base, rts 
+  Exposed-Modules:  Data.Datamining.Classification.LibSVM.C,
+                    Data.Datamining.Classification.LibSVM
   GHC-Options:     
   Extensions:       ForeignFunctionInterface
-
+  Includes:         svm.h
+  Extra-Libraries:  svm
