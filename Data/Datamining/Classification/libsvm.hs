@@ -30,9 +30,14 @@ module Data.Datamining.Classification.LibSVM(
 -- Standard Modules
 --------------------------------------------------------------------------------
 
+import Control.Monad
 import Data.List
+import Foreign.C.String
+import Foreign.Marshal.Alloc
 import Foreign.Marshal.Array
 import Foreign.Marshal.Utils
+import Foreign.Ptr
+import System.IO
 
 --------------------------------------------------------------------------------
 -- Private Modules
@@ -260,4 +265,33 @@ toCVersion Parameters {
     C.shrinking     = fromBool sh,
     C.probability   = fromBool ps
   }
+
+-------------------------------------------------------------------------------
+-- SVM Functions
+-------------------------------------------------------------------------------
+
+-- | Constructs and returns an SVM model according to
+-- the given training data and parameters.
+train :: TrainingInput -> Parameters -> IO C.Model
+train input parameters = do
+  problem <- handover input >>= new
+  c_parameters <- toCVersion parameters
+  model <- with c_parameters $ \p -> do
+    check <- C.check_parameters problem p 
+    if check == nullPtr 
+      then C.train problem p 
+      else do
+        error_code <- peekCAString check
+        error $ "in train: check_parameters returned " ++ error_code
+  free $ C.weight_label c_parameters 
+  free $ C.weight c_parameters
+  return $! model
+
+-- | Saves a model to a file.
+-- Calls @'error'@ if an error occurs.
+save :: C.Model -> FilePath -> IO ()
+save model destination = withCString destination $ \p -> do
+  return_code <- C.save_model p model
+  unless (return_code == 0) (
+    error $ "in save: save_model returned " ++ show return_code)
 
