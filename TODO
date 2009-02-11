@@ -1,3 +1,9 @@
+URGENT:
+  - Memory Management, Memory Management, Memory Management...
+    Figure out a way to manage memory properly. Right now a lot of allocation
+    is going on in a way that prevents haskell from freeing memory properly.
+    As a result probably a lot of memory is leaked...
+
 Tests:
   - Add a test to ensure that fromBool maps True to 1, since the README
     of LibSVM states that is uses exactly this convention.
