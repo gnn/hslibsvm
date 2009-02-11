@@ -111,7 +111,7 @@ import Foreign.Marshal.Utils
 -- This way the type checker makes sure the @'svm_type'@ field of 
 -- @'Parameters'@ is only set to allowed values.
 
-newtype SVMType = SVMType {unSVM :: CInt}
+newtype SVMType = SVMType {unSVM :: CInt} deriving Eq
 
 instance Show SVMType where
   showsPrec d t = showString . maybe "unknown SVM type" id . lookup t $ [
