@@ -1,13 +1,29 @@
--- This module contains an attempt to provide a more convenient interface to
--- LibSVM than the what would be gained by just using the translation of the
+--------------------------------------------------------------------------------
+-- | This module contains an attempt to provide a more convenient interface to
+-- LibSVM than the one gained by just using the translation of the
 -- C interface.
+--------------------------------------------------------------------------------
+
 module Data.Datamining.Classification.LibSVM(
-  InputVector, LabeledInput,
-  Label, Parameters(..), TrainingInput,
-  vector, label, labeledVector, labeledVectors,
+  -- * Types
+  -- ** Input Types
+  -- *** Input Vectors
+  InputVector, vector, 
+  -- *** Labeled Input Vectors
+  Label, LabeledInput, label, 
+  -- *** Training Input
+  TrainingInput, labeledVectors,
+  -- ** Support Vector Machine Types
   C.SVMType, cSVC, nuSVC, oneClass, epsilonSVR, nuSVR,
+  -- ** Kernel Function Types
   C.KernelFunction, 
   linear, polynomial, poly, radialBasisFunction, rbf, sigmoid, precomputed,
+  -- ** Training Parameters
+  Parameters(..), defaultNu,
+  -- ** Model
+  C.Model,
+  -- * SVM Functions
+  train, save
 ) where
 
 --------------------------------------------------------------------------------
@@ -132,9 +148,9 @@ sigmoid = C.sigmoid
 precomputed :: C.KernelFunction
 precomputed = C.precomputed
 
--- | This is LibSVM's way of passing the various training parameters 
--- to the support vector machine algorithm. This is the version uses 
--- ordinary haskell types as the field types and simplifies. 
+-- | LibSVM's way of passing the various training parameters 
+-- to the support vector machine. This version uses 
+-- ordinary haskell types as the field types. 
 -- All the fields have the 
 -- same meaning as the fields in the lower level translation of the 
 -- C struct @'C.Parameters'@.
@@ -155,14 +171,14 @@ data Parameters = Parameters {
   cacheSize :: Double
 , -- | The stopping criterion.
   epsilon :: Double
-, -- | The C paramter for the SVM types 'c_svc', 'epsilon_svr' and 'nu_svr'.
+, -- | The C paramter for the SVM types 'cSVC', 'epsilonSVR' and 'nuSVR'.
   parameterC :: Double
 , -- | This list can be used to change the penalty for some classes. If the 
   -- weight for a class is not changed, it is set to 1.
   -- This is useful for training classifier using unbalanced input data or 
   -- with asymmetric misclassification cost.
   -- If you don't want to use the feature provided by this and the next 
-  -- field, just set this field to the empty list @'[]'@.
+  -- field, just set this field to the empty list @[]@.
   -- This field contains a list of @(classLabel, weight)@ pairs.
   labelWeights :: [(Int, Double)]
 , -- | The parameter @nu@ used for the SVM types @'nuSVC'@, @'nuSVR'@, and 

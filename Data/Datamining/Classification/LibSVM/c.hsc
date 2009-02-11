@@ -1,37 +1,78 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
+--------------------------------------------------------------------------------
 -- | This module contains the translation of LibSVM's C interface to haskell.
--- It is mostly a literal translation. I only dropped the @svm_@ prefixes and
--- translated a few types into the corresponding haskell ones where 
--- appropriate.
+-- It is mostly a literal translation, so anyone who wants to build his own
+-- high level interface to LibSVM can do this using this module.
+-- For every exported entity the name of the corresponding C entity is included
+-- in the documentation and when translating C identifiers into haskell ones,
+-- most times only the @svm_@ prefixes have been dropped since it is basically 
+-- a job of the module system to take care of such things.
+--------------------------------------------------------------------------------
+
 module Data.Datamining.Classification.LibSVM.C (
+  -- * Types
+  -- | Translations of C structs and enums.
+
+  -- ** Supported SVM Variants
   SVMType, c_svc, nu_svc, one_class, epsilon_svr, nu_svr
+
+  -- ** Supported Kernel Functions
 , KernelFunction
 , linear, polynomial, poly, radialBasisFunction, rbf, sigmoid, precomputed
+
+  -- ** Training Input
+  -- *** LibSVM's Vector Representation
+  -- | LibSVM represents it's input vectors as sparse vectors with entries
+  -- of type @double@. To represent sparsity, values of type @double@ are 
+  -- paired with their indices and missing indices are treated as zero
+  -- values. Indices have to be in ascending order and the each input vector
+  -- has to be terminated with a node containing an index of -1. 
 , Node(..), NodeP, NodePP
+
+  -- *** Problem Formulation
 , Problem(..), ProblemP
+
+  -- *** Training Parameters
 , Parameters(..), ParametersP
+
+  -- ** Training output
 , Model
+
+  -- * Functions
+  -- | The documentation to these functions has been copied from LibSVM's
+  -- README file with a few minor changes.
+
+  -- ** Training
+, cross_validation 
 , train   
-, cross_validation
-, save_model
+
+  -- ** Serialization
 , load_model
-, get_svm_type
-, get_nr_class
+, save_model
+
+  -- ** Model Querying 
+, check_probability_model
 , get_labels
+, get_nr_class
+, get_svm_type
 , get_svr_probability
-, predict_values
+
+  -- ** Prediction
 , predict
+, predict_values
 , predict_probability
+
+  -- ** Memory Management
 , destroy_model
 , destroy_parameters
+
+  -- ** Sanity Checking
 , check_parameters
-, check_probability_model
 ) where
 
 --------------------------------------------------------------------------------
 -- Standard Modules
 --------------------------------------------------------------------------------
-
 import Foreign
 import Foreign.C.String
 import Foreign.C.Types
@@ -42,7 +83,7 @@ import Foreign.Marshal.Utils
 --------------------------------------------------------------------------------
 
 --------------------------------------------------------------------------------
--- Boilerplate: hsc2hs
+-- Boilerplate for hsc2hs
 --------------------------------------------------------------------------------
 
 -- This include us to get access to @offsetof@.
@@ -63,8 +104,12 @@ import Foreign.Marshal.Utils
 -- Types
 --------------------------------------------------------------------------------
 
--- | LibSVM supports a number of different SVM types. Use the exported 
--- values of type 'SVMType' to set which type of svm is going to be trained.
+-- | Type safe version of the C @enum@eration containing the constants used 
+-- to select the SVM variant to train. Use the exported 
+-- values of type @'SVMType'@ to control which type of svm is going to be 
+-- trained by setting the @'svm_type'@ field to the appropriate value.
+-- This way the type checker makes sure the @'svm_type'@ field of 
+-- @'Parameters'@ is only set to allowed values.
 
 newtype SVMType = SVMType {unSVM :: CInt}
 
@@ -76,9 +121,10 @@ newtype SVMType = SVMType {unSVM :: CInt}
 , nu_svr      = NU_SVR
 }
 
--- | LibSVM also supports a number of different types of kernel functions.
--- Again the exported values of type 'KernelFunction' should be used to set
--- the type one wants to use during training.
+-- | Type safe version of the C @enum@eration containing the constants used
+-- to choose the kernel function to be used in training and prediction.
+-- Again the exported values of type @'KernelFunction'@ should be used to set
+-- the @'kernel_type'@ field to the appropriate value.
 
 newtype KernelFunction = KernelFunction {unKernel :: CInt}
 
@@ -97,13 +143,10 @@ newtype KernelFunction = KernelFunction {unKernel :: CInt}
 -- necessary so that haddock puts the comment for the next data 
 -- declaration in the right place.
 
--- | LibSVM represents it's input vectors as sparse vectors with entries
--- of type @double@. To represent sparsity values of type @double@ are 
--- paired with their indices and missing indices are treated as zero
--- values. Indices have to be in ascending order and the each input vector
--- has to be terminated with a node containing an index of @-1@. 
--- The type @Node@ is just the translation of @svm.h@'s @struct svm_node@ 
--- into a haskell representation.  
+
+-- | Sparse representation of input vectors. 
+-- 
+-- C Type: @struct svm_node;@  
 data Node = Node {
   index :: CInt
 , value :: CDouble
@@ -124,14 +167,17 @@ type NodeP = Ptr Node
 
 type NodePP = Ptr NodeP
 
--- | This is the way LibSVM saves training input. 
+-- | This is the way LibSVM bundles input vectors and corresponding classes
+-- together as input for training the support vector machine.
+--
+-- C Type:  @struct svm_problem;@
 data Problem = Problem { 
   -- | The number of training samples.
   size :: CInt
 , -- | The labels. For regression this would be real numbers while for 
   -- classificiation this should be integers.
   labels :: Ptr CDouble 
-, -- The array of input vectors.
+, -- | The array of input vectors.
   inputs :: NodePP
 }
 
@@ -150,9 +196,10 @@ instance Storable Problem where
 
 type ProblemP = Ptr Problem
 
--- | The type @Parameters@ is the haskell translation of the C type
--- @struct svm_paramter@. This is LibSVM's way of passing the various
--- training parameters to the support vector machine algorithm.
+-- | LibSVM's way of passing the various training parameters to the 
+-- support vector machine algorithm.
+--
+-- C Type: @struct svm_parameter;@
 data Parameters = Parameters {
   -- | The type of support vector machine to train.
   svm_type :: SVMType
@@ -180,7 +227,7 @@ data Parameters = Parameters {
   -- This field contains the number of weight labels and weights, i.e. 
   -- the number of entries in @'weight_label'@ and @'weight'@. 
   -- If you don't want to use the feature provided by this and the next 
-  -- two fields, just set @'weight_labels'@ to @0@.
+  -- two fields, just set @'weight_labels'@ to 0.
   weight_labels :: CInt
 , -- | The weight labels matching the given weights.
   weight_label :: Ptr CInt
@@ -259,49 +306,153 @@ type Model = Ptr ()
 -- Foreign Imports
 --------------------------------------------------------------------------------
 
+-- | This function constructs and returns an SVM model according to
+-- the given training data and parameters.
+--
+-- C declaration: @struct svm_model *svm_train(const struct svm_problem *, 
+--  const struct svm_parameter *);@
 foreign import ccall unsafe "svm.h svm_train"
   train :: ProblemP -> ParametersP -> IO Model
 
+-- | This function conducts cross validation.
+-- @cross_validation prob param nr_fold target@ separates data into
+-- nr_fold folds. Under given parameters, sequentially each fold is
+-- validated using the model from training the remaining. Predicted
+-- labels (of all @prob@'s instances) in the validation process are
+-- stored in the array called @target@.
+--
+-- C declaration: @void svm_cross_validation(const struct svm_problem *,
+--  const struct svm_parameter *, int, double *);@
 foreign import ccall unsafe "svm.h  svm_cross_validation"
-  cross_validation :: 
-    ProblemP -> ParametersP -> CInt -> Ptr CDouble -> IO ()
+  cross_validation :: ProblemP -> ParametersP -> CInt -> Ptr CDouble -> IO ()
 
+-- | This function saves a model to a file; returns 0 on success, or -1
+-- if an error occurs.
+--
+-- C declaration: @int svm_save_model(const char *,const struct svm_model *);@
 foreign import ccall unsafe "svm.h svm_save_model"
   save_model :: CString -> Model -> IO CInt
 
+-- | This function returns a pointer to the model read from the file,
+-- or a null pointer if the model could not be loaded.
+--
+-- C declaration: @struct svm_model *svm_load_model(const char *);@
 foreign import ccall unsafe "svm.h svm_load_model"
   load_model :: CString -> IO Model
 
+-- | This function gives svm_type of the model. Possible values of
+-- svm_type are defined in svm.h.
+--
+-- C declaration: @int svm_get_svm_type(const struct svm_model *);@
 foreign import ccall unsafe "svm.h svm_get_svm_type"
   get_svm_type :: Model -> IO SVMType
 
+-- | For a classification model, this function gives the number of
+-- classes. For a regression or an one-class model, 2 is returned.
+--
+-- C declaration @int svm_get_nr_class(const svm_model *);@
 foreign import ccall unsafe "svm.h svm_get_nr_class"
   get_nr_class :: Model -> IO CInt
 
+-- | For a classification model, @get_labels model label@ outputs the name of
+-- labels into the array @label@. For regression and one-class
+-- models, @'label'@ is unchanged.
+--
+-- C declaration: @void svm_get_labels(const svm_model *, int*);@
 foreign import ccall unsafe "svm.h svm_get_labels"
   get_labels :: Model -> Ptr CInt -> IO ()
 
+-- | For a regression model with probability information, this function
+-- outputs a value sigma > 0. For test data, we consider the
+-- probability model: target value = predicted value + z, z: Laplace
+-- distribution e^(-|z|/sigma)/(2sigma)
+
+-- If the model is not for svr or does not contain required
+-- information, 0 is returned.
+
+-- C declaration: @double svm_get_svr_probability(const struct svm_model *);@
 foreign import ccall unsafe "svm.h svm_get_svr_probability"
   get_svr_probability :: Model -> IO CDouble
 
+-- | This function gives decision values on a test vector x given a
+-- model.
+-- 
+-- For a classification model with nr_class classes, 
+-- @predict_values model x dec_values@
+-- gives nr_class*(nr_class-1)/2 decision values in the array
+-- @dec_values@, where nr_class can be obtained from the function
+-- @'get_nr_class'@. The order is label[0] vs. label[1], ...,
+-- label[0] vs. label[nr_class-1], label[1] vs. label[2], ...,
+-- label[nr_class-2] vs. label[nr_class-1], where label can be
+-- obtained from the function @'get_labels'@.
+-- 
+-- For a regression model, label[0] is the function value of @x@
+-- calculated using the model. For one-class model, label[0] is +1 or
+-- -1.
+
+-- C declaration: @void svm_predict_values(const svm_model *, 
+--  const svm_node *, double*)@
 foreign import ccall unsafe "svm.h svm_predict_values"
   predict_values :: Model -> NodeP -> Ptr CDouble -> IO ()
 
+-- | @predict model x@ does classification or regression on a test vector 
+-- @x@ given a @model@.
+-- 
+-- For a classification model, the predicted class for @x@ is returned.
+-- For a regression model, the function value of @x@ calculated using
+-- the model is returned. For an one-class model, +1 or -1 is
+-- returned.
+--
+-- C declaration: @double svm_predict(const struct svm_model *, 
+--  const struct svm_node *);@
 foreign import ccall unsafe "svm.h svm_predict"
   predict :: Model -> NodeP -> IO CDouble
 
+-- | @predict_probability model x prob_etimates@ does classification or 
+-- regression on a test vector @x@ given a @model@ with probability 
+-- information.
+-- 
+-- For a classification model with probability information, this
+-- function gives nr_class probability estimates in the array
+-- @prob_estimates@. nr_class can be obtained from the function
+-- @'get_nr_class'@. The class with the highest probability is
+-- returned. For regression/one-class SVM, the array @prob_estimates@
+-- is unchanged and the returned value is the same as that of
+-- @'predict'@.
+--
+-- C declaration: @double svm_predict_probability(const struct svm_model *,
+--  const struct svm_node *, double*);@
 foreign import ccall unsafe "svm.h svm_predict_probability"
   predict_probability :: Model -> NodeP -> Ptr CDouble -> IO CDouble
 
+-- | This function frees the memory used by a model.
+--
+-- C declaration: @void svm_destroy_model(struct svm_model *);@
 foreign import ccall unsafe "svm.h svm_destroy_model"
   destroy_model :: Model -> IO ()
 
+-- | This function frees the memory used by a parameter set.
+--
+-- C declaration: @void svm_destroy_param(struct svm_parameter *);@
 foreign import ccall unsafe "svm.h svm_destroy_param"
   destroy_parameters :: ParametersP -> IO ()
 
+-- | This function checks whether the parameters are within the feasible
+-- range of the problem. This function should be called before calling
+-- @'train'@ and @'cross_validation'@. It returns NULL if the
+-- parameters are feasible, otherwise an error message is returned.
+--
+-- C declaration: @const char *svm_check_parameter(const struct svm_problem *, 
+--  const struct svm_parameter *);@
 foreign import ccall unsafe "svm.h svm_check_parameter"
   check_parameters :: ProblemP -> ParametersP -> IO CString
 
+-- | This function checks whether the model contains required
+-- information to do probability estimates. If so, it returns
+-- +1. Otherwise, 0 is returned. This function should be called
+-- before calling @'get_svr_probability'@ and @'predict_probability'@.
+--
+-- C declaration: @int svm_check_probability_model(const struct svm_model *);@
 foreign import ccall unsafe "svm.h svm_check_probability_model"
   check_probability_model :: Model -> IO CInt
 
