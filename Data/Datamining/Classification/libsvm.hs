@@ -76,14 +76,10 @@ vector = InputVector
 label :: InputVector -> Label -> LabeledInput
 label = flip LabeledInput
 
--- | Creates a labeled input vector from a @Label@, @InputVector@ pair.
-labeledVector :: (Label, InputVector) -> LabeledInput
-labeledVector = uncurry LabeledInput
-
 -- | Creates inputs suitable for handing them over to LibSVM for training 
 -- from a list of @'Label'@, @'InputVector'@ pairs.
 labeledVectors :: [(Label, InputVector)] -> TrainingInput
-labeledVectors = map labeledVector
+labeledVectors = map $ uncurry LabeledInput
 
 -- | C-SVM classification
 cSVC :: C.SVMType
