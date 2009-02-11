@@ -198,6 +198,9 @@ data Parameters = Parameters {
   probability :: Bool
 } deriving Show
 
+-- | A set of default parameters for nu-SVM classification.
+defaultNu :: Parameters
+defaultNu = Parameters nuSVC rbf 0 1 0 100 0.00001 0 [] 0.1 0 True False
 --------------------------------------------------------------------------------
 -- Convenience Functions
 --------------------------------------------------------------------------------
