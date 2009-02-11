@@ -113,6 +113,15 @@ import Foreign.Marshal.Utils
 
 newtype SVMType = SVMType {unSVM :: CInt}
 
+instance Show SVMType where
+  showsPrec d t = showString . maybe "unknown SVM type" id . lookup t $ [
+      (c_svc,"cSVC") 
+    , (nu_svc, "nuSVC") 
+    , (one_class, "oneClass")
+    , (epsilon_svr, "epsilonSVR")
+    , (nu_svr, "nuSVR")
+    ] 
+
 #{enum SVMType, SVMType
 , c_svc       = C_SVC
 , nu_svc      = NU_SVC
@@ -126,7 +135,18 @@ newtype SVMType = SVMType {unSVM :: CInt}
 -- Again the exported values of type @'KernelFunction'@ should be used to set
 -- the @'kernel_type'@ field to the appropriate value.
 
-newtype KernelFunction = KernelFunction {unKernel :: CInt}
+newtype KernelFunction = KernelFunction {unKernel :: CInt} deriving Eq
+
+instance Show KernelFunction where 
+  showsPrec d f = showString . maybe "unknown Kernel" id . lookup f $ [
+      (linear, "linear")
+    , (polynomial, "polynomial")
+    , (poly, "polynomial")
+    , (radialBasisFunction, "radial basis function")
+    , (rbf, "radial basis function")
+    , (sigmoid, "sigmoid")
+    , (precomputed, "precomputed")
+    ]
 
 #{enum KernelFunction, KernelFunction
 , linear              = LINEAR
@@ -249,7 +269,7 @@ data Parameters = Parameters {
   -- information or not. Probability information is gathered if and only 
   -- if this flag is set to 'True'.
   probability :: CInt
-}
+} deriving Show
 
 instance Storable Parameters where
   sizeOf    _ = (#size struct svm_parameter)

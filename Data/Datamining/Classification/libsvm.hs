@@ -195,7 +195,7 @@ data Parameters = Parameters {
   -- information or not. Probability information is gathered if and only 
   -- if this flag is set to 'True'.
   probability :: Bool
-}
+} deriving Show
 
 --------------------------------------------------------------------------------
 -- Convenience Functions
