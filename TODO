@@ -1,9 +1,3 @@
-URGENT:
-  - Memory Management, Memory Management, Memory Management...
-    Figure out a way to manage memory properly. Right now a lot of allocation
-    is going on in a way that prevents haskell from freeing memory properly.
-    As a result probably a lot of memory is leaked...
-
 General:
   - Decide whether to make this package depend on 
     http://hackage.haskell.org/cgi-bin/hackage-scripts/package/logfloat

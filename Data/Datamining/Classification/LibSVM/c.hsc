@@ -36,7 +36,7 @@ module Data.Datamining.Classification.LibSVM.C (
 , Parameters(..), ParametersP
 
   -- ** Training output
-, Model
+, Model, ModelP
 
   -- * Functions
   -- | The documentation to these functions has been copied from LibSVM's
@@ -63,8 +63,8 @@ module Data.Datamining.Classification.LibSVM.C (
 , predict_probability
 
   -- ** Memory Management
-, destroy_model
-, destroy_parameters
+, destroy_model, finalizeModel
+, destroy_parameters, finalizeParameters
 
   -- ** Sanity Checking
 , check_parameters
@@ -77,6 +77,7 @@ import Foreign
 import Foreign.C.String
 import Foreign.C.Types
 import Foreign.Marshal.Utils
+import Foreign.Ptr
 
 --------------------------------------------------------------------------------
 -- Private Modules
@@ -320,7 +321,8 @@ type ParametersP = Ptr Parameters
 -- meant to be passed around between functions expecting it as a parameter.
 -- The only way of obtaining (a pointer to) a value of this type is through
 -- the C functions @svm_train@ and @svm_load_model@.
-type Model = Ptr ()
+data Model = Model
+type ModelP = Ptr Model
 
 --------------------------------------------------------------------------------
 -- Foreign Imports
@@ -332,7 +334,7 @@ type Model = Ptr ()
 -- C declaration: @struct svm_model *svm_train(const struct svm_problem *, 
 --  const struct svm_parameter *);@
 foreign import ccall unsafe "svm.h svm_train"
-  train :: ProblemP -> ParametersP -> IO Model
+  train :: ProblemP -> ParametersP -> IO ModelP
 
 -- | This function conducts cross validation.
 -- @cross_validation prob param nr_fold target@ separates data into
@@ -351,28 +353,28 @@ foreign import ccall unsafe "svm.h  svm_cross_validation"
 --
 -- C declaration: @int svm_save_model(const char *,const struct svm_model *);@
 foreign import ccall unsafe "svm.h svm_save_model"
-  save_model :: CString -> Model -> IO CInt
+  save_model :: CString -> ModelP -> IO CInt
 
 -- | This function returns a pointer to the model read from the file,
 -- or a null pointer if the model could not be loaded.
 --
 -- C declaration: @struct svm_model *svm_load_model(const char *);@
 foreign import ccall unsafe "svm.h svm_load_model"
-  load_model :: CString -> IO Model
+  load_model :: CString -> IO ModelP
 
 -- | This function gives svm_type of the model. Possible values of
 -- svm_type are defined in svm.h.
 --
 -- C declaration: @int svm_get_svm_type(const struct svm_model *);@
 foreign import ccall unsafe "svm.h svm_get_svm_type"
-  get_svm_type :: Model -> IO SVMType
+  get_svm_type :: ModelP -> IO SVMType
 
 -- | For a classification model, this function gives the number of
 -- classes. For a regression or an one-class model, 2 is returned.
 --
 -- C declaration @int svm_get_nr_class(const svm_model *);@
 foreign import ccall unsafe "svm.h svm_get_nr_class"
-  get_nr_class :: Model -> IO CInt
+  get_nr_class :: ModelP -> IO CInt
 
 -- | For a classification model, @get_labels model label@ outputs the name of
 -- labels into the array @label@. For regression and one-class
@@ -380,7 +382,7 @@ foreign import ccall unsafe "svm.h svm_get_nr_class"
 --
 -- C declaration: @void svm_get_labels(const svm_model *, int*);@
 foreign import ccall unsafe "svm.h svm_get_labels"
-  get_labels :: Model -> Ptr CInt -> IO ()
+  get_labels :: ModelP -> Ptr CInt -> IO ()
 
 -- | For a regression model with probability information, this function
 -- outputs a value sigma > 0. For test data, we consider the
@@ -392,7 +394,7 @@ foreign import ccall unsafe "svm.h svm_get_labels"
 
 -- C declaration: @double svm_get_svr_probability(const struct svm_model *);@
 foreign import ccall unsafe "svm.h svm_get_svr_probability"
-  get_svr_probability :: Model -> IO CDouble
+  get_svr_probability :: ModelP -> IO CDouble
 
 -- | This function gives decision values on a test vector x given a
 -- model.
@@ -413,7 +415,7 @@ foreign import ccall unsafe "svm.h svm_get_svr_probability"
 -- C declaration: @void svm_predict_values(const svm_model *, 
 --  const svm_node *, double*)@
 foreign import ccall unsafe "svm.h svm_predict_values"
-  predict_values :: Model -> NodeP -> Ptr CDouble -> IO ()
+  predict_values :: ModelP -> NodeP -> Ptr CDouble -> IO ()
 
 -- | @predict model x@ does classification or regression on a test vector 
 -- @x@ given a @model@.
@@ -426,7 +428,7 @@ foreign import ccall unsafe "svm.h svm_predict_values"
 -- C declaration: @double svm_predict(const struct svm_model *, 
 --  const struct svm_node *);@
 foreign import ccall unsafe "svm.h svm_predict"
-  predict :: Model -> NodeP -> IO CDouble
+  predict :: ModelP -> NodeP -> IO CDouble
 
 -- | @predict_probability model x prob_etimates@ does classification or 
 -- regression on a test vector @x@ given a @model@ with probability 
@@ -443,19 +445,27 @@ foreign import ccall unsafe "svm.h svm_predict"
 -- C declaration: @double svm_predict_probability(const struct svm_model *,
 --  const struct svm_node *, double*);@
 foreign import ccall unsafe "svm.h svm_predict_probability"
-  predict_probability :: Model -> NodeP -> Ptr CDouble -> IO CDouble
+  predict_probability :: ModelP -> NodeP -> Ptr CDouble -> IO CDouble
 
 -- | This function frees the memory used by a model.
 --
 -- C declaration: @void svm_destroy_model(struct svm_model *);@
 foreign import ccall unsafe "svm.h svm_destroy_model"
-  destroy_model :: Model -> IO ()
+  destroy_model :: ModelP -> IO ()
+
+-- | The finalizer for a model.
+foreign import ccall unsafe "svm.h &svm_destroy_model"
+  finalizeModel :: FinalizerPtr Model
 
 -- | This function frees the memory used by a parameter set.
 --
 -- C declaration: @void svm_destroy_param(struct svm_parameter *);@
 foreign import ccall unsafe "svm.h svm_destroy_param"
   destroy_parameters :: ParametersP -> IO ()
+
+-- | The finalizer for parameters.
+foreign import ccall unsafe "svm.h &svm_destroy_param"
+  finalizeParameters :: FinalizerPtr Parameters 
 
 -- | This function checks whether the parameters are within the feasible
 -- range of the problem. This function should be called before calling
@@ -474,5 +484,5 @@ foreign import ccall unsafe "svm.h svm_check_parameter"
 --
 -- C declaration: @int svm_check_probability_model(const struct svm_model *);@
 foreign import ccall unsafe "svm.h svm_check_probability_model"
-  check_probability_model :: Model -> IO CInt
+  check_probability_model :: ModelP -> IO CInt
 

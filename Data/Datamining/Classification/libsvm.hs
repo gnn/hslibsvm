@@ -22,7 +22,7 @@ module Data.Datamining.Classification.LibSVM(
   -- ** Training Parameters
 , Parameters(..), defaultNu
   -- ** Model
-  C.Model,
+, Model
   -- * SVM Functions
 , train, save
 ) where
@@ -36,6 +36,7 @@ import Data.List
 import qualified Data.Map as Map
 import qualified Data.IntMap as IMap
 import Foreign.C.String
+import Foreign.ForeignPtr
 import Foreign.Marshal.Alloc
 import Foreign.Marshal.Array
 import Foreign.Marshal.Utils
@@ -232,6 +233,12 @@ data Parameters = Parameters {
 -- | A set of default parameters for nu-SVM classification.
 defaultNu :: Parameters
 defaultNu = Parameters nuSVC rbf 0 1 0 100 0.00001 0 [] 0.1 0 True False
+
+-- | A handle to a model used by LibSVM. It can only be created by 
+-- functions returning this type and those functions ensure proper
+-- memory management
+newtype Model = Model (ForeignPtr C.Model)
+
 --------------------------------------------------------------------------------
 -- Convenience Functions
 --------------------------------------------------------------------------------
@@ -253,11 +260,12 @@ toSparse (InputVector v) = let
   node (index, value) = C.Node (fromIntegral index) (realToFrac value) in
   newArray $! map node $ result
 
--- | Translates the type @'Parameters'@ into the type @'C.Parameters'@ by
--- converting internal dataypes to the C datatype representations and 
--- allocating the needed arrays.
-toCVersion :: Parameters -> IO C.Parameters
-toCVersion Parameters {
+-- | Translates the type @'Parameters'@ into a value of type 
+-- @'ForeignPtr C.Parameters'@ by converting internal dataypes to the C 
+-- datatype representations,  allocating the needed arrays and then 
+-- associating the result with a finalizer.
+marshallParameters :: Parameters -> IO (ForeignPtr C.Parameters)
+marshallParameters Parameters {
   svmType       = t, 
   kernelType    = k, 
   degree        = d, 
@@ -278,7 +286,7 @@ toCVersion Parameters {
     weights = map (rtf . snd) lws in do
   labelArray <- newArray labels
   weightArray <- newArray weights
-  return $! C.Parameters {
+  new C.Parameters {
     C.svm_type      = t,
     C.kernel_type   = k,
     C.degree        = fI d,
@@ -294,7 +302,7 @@ toCVersion Parameters {
     C.epsilon'      = rtf e',
     C.shrinking     = fromBool sh,
     C.probability   = fromBool ps
-  }
+  } >>= newForeignPtr C.finalizeParameters
 
 -------------------------------------------------------------------------------
 -- SVM Functions
@@ -302,26 +310,25 @@ toCVersion Parameters {
 
 -- | Constructs and returns an SVM model according to
 -- the given training data and parameters.
-train :: TrainingInput -> Parameters -> IO C.Model
-train input parameters = do
+train :: Trainable i => i -> Parameters -> IO Model
+train i parameters = let input = trainingInput i in do
   problem <- handover input >>= new
-  c_parameters <- toCVersion parameters
-  model <- with c_parameters $ \p -> do
+  c_parameters <- marshallParameters parameters
+  model <- withForeignPtr c_parameters $ \p -> do
     check <- C.check_parameters problem p 
     if check == nullPtr 
       then C.train problem p 
       else do
         error_code <- peekCAString check
         error $ "in train: check_parameters returned " ++ error_code
-  free $ C.weight_label c_parameters 
-  free $ C.weight c_parameters
-  return $! model
+  result <- newForeignPtr C.finalizeModel model
+  return $! Model result
 
 -- | Saves a model to a file.
 -- Calls @'error'@ if an error occurs.
-save :: C.Model -> FilePath -> IO ()
-save model destination = withCString destination $ \p -> do
-  return_code <- C.save_model p model
+save :: Model -> FilePath -> IO ()
+save (Model modelPointer) destination = withCString destination $ \p -> do
+  return_code <- withForeignPtr modelPointer (C.save_model p)
   unless (return_code == 0) (
     error $ "in save: save_model returned " ++ show return_code)
 
