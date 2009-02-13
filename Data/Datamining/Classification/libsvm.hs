@@ -24,7 +24,28 @@ module Data.Datamining.Classification.LibSVM(
   -- ** Model
 , Model
   -- * SVM Functions
-, train, load, save
+  -- ** Training
+
+--, cross_validation 
+, train   
+
+  -- ** Serialization
+, load
+, save
+
+  -- ** Model Querying 
+
+--, check_probability_model
+--, get_labels
+--, get_nr_class
+--, get_svm_type
+--, get_svr_probability
+
+  -- ** Prediction
+, predict
+--, predict_values
+--, predict_probability
+
 ) where
 
 --------------------------------------------------------------------------------
@@ -351,3 +372,15 @@ load source = withCString source $ \p -> throwIfNull
     ("in load: loading model from file '" ++ source ++ "' failed")
     (C.load_model p) >>= 
   newForeignPtr C.finalizeModel >>= return . Model
+
+-- | Classifies the input.
+-- @predict model x@ does classification on the input vector @x@ 
+-- according to @model@.
+--
+-- For a classification model, the predicted class for x is returned. 
+-- For a regression model, the function value of x calculated using 
+-- the model is returned. For an one-class model, +1 or -1 is returned. 
+predict :: SVMInput input => Model -> input -> IO Label
+predict (Model modelFP) input = withForeignPtr modelFP $ \modelP -> do
+  withArray (toSparse input) (C.predict modelP) >>= return . realToFrac
+
