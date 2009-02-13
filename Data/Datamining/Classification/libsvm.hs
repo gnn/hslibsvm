@@ -73,6 +73,9 @@ class SVMInput a where
 instance Real a => SVMInput [a] where
   inputVector = InputVector . map (realToFrac)
 
+instance SVMInput LabeledInput where
+  inputVector = getVector
+
 -- | The type of labeled input vectors, i.e. an @'InputVector'@ with a 
 -- corresponding @'Label'@.
 data LabeledInput = LabeledInput { 
