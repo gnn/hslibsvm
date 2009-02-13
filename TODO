@@ -4,6 +4,13 @@ URGENT:
     is going on in a way that prevents haskell from freeing memory properly.
     As a result probably a lot of memory is leaked...
 
+General:
+  - Decide whether to make this package depend on 
+    http://hackage.haskell.org/cgi-bin/hackage-scripts/package/logfloat
+    so that a correct version of realToFrac can be used.
+    Or maybe use the convertible package...
+    See the ANN: convertible thread on the haskell mailing list for details
+
 Tests:
   - Add a test to ensure that fromBool maps True to 1, since the README
     of LibSVM states that is uses exactly this convention.

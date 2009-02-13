@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleInstances #-}
 --------------------------------------------------------------------------------
 -- | This module contains an attempt to provide a more convenient interface to
 -- LibSVM than the one gained by just using the translation of the
@@ -8,11 +9,11 @@ module Data.Datamining.Classification.LibSVM(
   -- * Types
   -- ** Input Types
   -- *** Input Vectors
-  InputVector, vector, 
+  InputVector, SVMInput 
   -- *** Labeled Input Vectors
-  Label, LabeledInput, label, 
+, Label, LabeledInput, label, labelList
   -- *** Training Input
-  TrainingInput, labeledVectors,
+, TrainingInput, Trainable
   -- ** Support Vector Machine Types
   C.SVMType, cSVC, nuSVC, oneClass, epsilonSVR, nuSVR,
   -- ** Kernel Function Types
@@ -32,6 +33,8 @@ module Data.Datamining.Classification.LibSVM(
 
 import Control.Monad
 import Data.List
+import qualified Data.Map as Map
+import qualified Data.IntMap as IMap
 import Foreign.C.String
 import Foreign.Marshal.Alloc
 import Foreign.Marshal.Array
@@ -46,12 +49,28 @@ import System.IO
 import qualified Data.Datamining.Classification.LibSVM.C as C
 
 --------------------------------------------------------------------------------
--- Types
+-- Types and Type Classes
 --------------------------------------------------------------------------------
 
 -- | The type of input vectors (without the labels) used to communicate 
 -- with LibSVM.
-newtype InputVector = InputVector { inputVector :: [Double]}
+newtype InputVector = InputVector { unInputVector :: [Double]}
+
+-- | The class of the types which act as viable input vectors to LibSVM.
+-- For lists of types which are an instance of the type class @'Real'@
+-- a default implementation is provided so that you can use lists of 
+-- most numeric types out of the box.
+-- NOTE: The default instance for @'Real'@ uses @'realToFrac'@ which is
+-- broken. Read
+-- <http://www.mail-archive.com/haskell-prime@haskell.org/msg00790.html>
+-- or
+-- <http://www.mail-archive.com/haskell-cafe@haskell.org/msg52603.html>
+-- and be aware of the danger.
+class SVMInput a where
+  inputVector :: a -> InputVector
+
+instance Real a => SVMInput [a] where
+  inputVector = InputVector . map (realToFrac)
 
 -- | The type of labeled input vectors, i.e. an @'InputVector'@ with a 
 -- corresponding @'Label'@.
@@ -68,18 +87,28 @@ type TrainingInput = [LabeledInput]
 -- should use the integer representing the class label as the label.
 type Label = Double
 
--- | Creates an inputvector from a list of @Double@s.
-vector :: [Double] -> InputVector
-vector = InputVector
+-- | Labels an input vector.
+label :: (SVMInput i) => i -> Label -> LabeledInput
+label = flip LabeledInput . inputVector
 
--- | Assigns a label to a vector.
-label :: InputVector -> Label -> LabeledInput
-label = flip LabeledInput
+-- | Labels a list of input vectors. 
+labelList :: (SVMInput i) => [i] -> Label -> [LabeledInput]
+labelList is l = map (flip label l) is
 
--- | Creates inputs suitable for handing them over to LibSVM for training 
--- from a list of @'Label'@, @'InputVector'@ pairs.
-labeledVectors :: [(Label, InputVector)] -> TrainingInput
-labeledVectors = map $ uncurry LabeledInput
+-- | The class of types which can be interpreted as something a support
+-- vector machine can be trained from.
+class Trainable a where trainingInput :: a -> TrainingInput
+
+instance (SVMInput i) => Trainable [(Label, [i])] where 
+  trainingInput = concatMap $ (uncurry . flip) labelList
+
+instance (SVMInput i) => Trainable (Map.Map Label [i]) where
+  trainingInput = trainingInput . Map.assocs
+
+instance (SVMInput i) => Trainable (IMap.IntMap [i]) where
+  trainingInput = trainingInput . 
+    map (\(k, e) -> ((fromIntegral k)::Label, e)) . 
+    IMap.assocs
 
 -- | C-SVM classification
 cSVC :: C.SVMType

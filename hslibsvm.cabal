@@ -15,7 +15,7 @@ Description:
   be found on its website: <http://www.csie.ntu.edu.tw/~cjlin/libsvm/>.
 
 Library
-  Build-Depends:    base, rts 
+  Build-Depends:    base, containers, rts 
   Exposed-Modules:  Data.Datamining.Classification.LibSVM.C,
                     Data.Datamining.Classification.LibSVM
   GHC-Options:     
