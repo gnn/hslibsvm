@@ -31,6 +31,7 @@ module Data.Datamining.Classification.LibSVM(
 -- Standard Modules
 --------------------------------------------------------------------------------
 
+import Control.Exception
 import Control.Monad
 import Data.List
 import qualified Data.Map as Map
@@ -39,6 +40,7 @@ import Foreign.C.String
 import Foreign.ForeignPtr
 import Foreign.Marshal.Alloc
 import Foreign.Marshal.Array
+import Foreign.Marshal.Error
 import Foreign.Marshal.Utils
 import Foreign.Ptr
 import System.IO
@@ -313,6 +315,7 @@ marshallParameters Parameters {
 
 -- | Constructs and returns an SVM model according to
 -- the given training data and parameters.
+-- Throws a @'userError'@ if the @'Parameters'@ are deemed infeasible.
 train :: Trainable i => i -> Parameters -> IO Model
 train i parameters = let input = trainingInput i in do
   problem <- handover input >>= new
@@ -323,15 +326,17 @@ train i parameters = let input = trainingInput i in do
       then C.train problem p 
       else do
         error_code <- peekCAString check
-        error $ "in train: check_parameters returned " ++ error_code
+        throwIO $ userError 
+          ("in train: check_parameters returned '" ++ error_code ++ "'")
   result <- newForeignPtr C.finalizeModel model
   return $! Model result
 
 -- | Saves a model to a file.
--- Calls @'error'@ if an error occurs.
+-- Throws a @'userError'@ if an error occurs.
 save :: Model -> FilePath -> IO ()
-save (Model modelPointer) destination = withCString destination $ \p -> do
-  return_code <- withForeignPtr modelPointer (C.save_model p)
-  unless (return_code == 0) (
-    error $ "in save: save_model returned " ++ show return_code)
+save (Model modelPointer) destination = 
+  withCString destination $ \p -> throwIfNeg_
+    (\code -> "in save: saving model to '" ++ destination ++ 
+      "'returned failed with " ++ show code)
+    (withForeignPtr modelPointer $ (C.save_model p))
 
