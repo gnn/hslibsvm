@@ -254,21 +254,20 @@ marshalInput :: Trainable i => i -> IO C.Problem
 marshalInput input = let 
   ti = trainingInput input
   labels = map (realToFrac . getLabel) ti
-  vectors = map inputVector ti
   count = fromIntegral $ length ti in do
   labelArray <- newArray labels
-  vectorArray <- mapM toSparse vectors >>= newArray
+  vectorArray <- mapM (newArray . toSparse) ti >>= newArray
   return $! 
     C.Problem { C.size = count, C.labels = labelArray, C.inputs = vectorArray}
 
 -- | Translates an @InputVector@ into the sparse representation expected 
 -- by LibSVM.
-toSparse :: InputVector -> IO C.NodeP
-toSparse (InputVector v) = let 
+toSparse :: SVMInput input => input -> [C.Node]
+toSparse input = map node result where
   result =  reverse $ (-1, 0) : snd (foldl' f (0, []) v)
+  (InputVector v) = inputVector input
   f (c, xs) x = (c + 1, if x == 0 then xs else (c + 1, x) : xs) 
-  node (index, value) = C.Node (fromIntegral index) (realToFrac value) in
-  newArray $! map node $ result
+  node (index, value) = C.Node (fromIntegral index) (realToFrac value)
 
 -- | Translates the type @'Parameters'@ into a value of type 
 -- @'ForeignPtr C.Parameters'@ by converting internal dataypes to the C 
