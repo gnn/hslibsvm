@@ -15,16 +15,16 @@ module Data.Datamining.Classification.LibSVM(
   -- *** Training Input
 , TrainingInput, Trainable
   -- ** Support Vector Machine Types
-  C.SVMType, cSVC, nuSVC, oneClass, epsilonSVR, nuSVR,
+, C.SVMType, cSVC, nuSVC, oneClass, epsilonSVR, nuSVR
   -- ** Kernel Function Types
-  C.KernelFunction, 
-  linear, polynomial, poly, radialBasisFunction, rbf, sigmoid, precomputed,
+, C.KernelFunction
+, linear, polynomial, poly, radialBasisFunction, rbf, sigmoid, precomputed
   -- ** Training Parameters
-  Parameters(..), defaultNu,
+, Parameters(..), defaultNu
   -- ** Model
   C.Model,
   -- * SVM Functions
-  train, save
+, train, save
 ) where
 
 --------------------------------------------------------------------------------

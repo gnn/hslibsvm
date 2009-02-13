@@ -14,3 +14,4 @@ General:
 Tests:
   - Add a test to ensure that fromBool maps True to 1, since the README
     of LibSVM states that is uses exactly this convention.
+
