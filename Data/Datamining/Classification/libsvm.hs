@@ -9,11 +9,11 @@ module Data.Datamining.Classification.LibSVM(
   -- * Types
   -- ** Input Types
   -- *** Input Vectors
-  InputVector, SVMInput 
+  InputVector, SVMInput, inputVector
   -- *** Labeled Input Vectors
 , Label, LabeledInput, label, labelList
   -- *** Training Input
-, TrainingInput, Trainable
+, TrainingInput, Trainable, trainingInput
   -- ** Support Vector Machine Types
 , C.SVMType, cSVC, nuSVC, oneClass, epsilonSVR, nuSVR
   -- ** Kernel Function Types
