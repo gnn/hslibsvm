@@ -248,13 +248,18 @@ newtype Model = Model (ForeignPtr C.Model)
 -- Convenience Functions
 --------------------------------------------------------------------------------
 
--- | Translates a @TrainingInput@ into a the problem format suitable as 
--- input for LibSVM's 'C.train' function.
-handover :: TrainingInput -> IO C.Problem
-handover input = let count = fromIntegral $ length input in do
-  labels <- newArray $ map (realToFrac . getLabel) input
-  ivs <- mapM (toSparse . getVector) input >>= newArray
-  return $! C.Problem { C.size = count, C.labels = labels, C.inputs = ivs}
+-- | Translates instances of class @'Trainable'@ into the problem format 
+-- suitable as input for LibSVM's 'C.train' function.
+marshalInput :: Trainable i => i -> IO C.Problem
+marshalInput input = let 
+  ti = trainingInput input
+  labels = map (realToFrac . getLabel) ti
+  vectors = map inputVector ti
+  count = fromIntegral $ length ti in do
+  labelArray <- newArray labels
+  vectorArray <- mapM toSparse vectors >>= newArray
+  return $! 
+    C.Problem { C.size = count, C.labels = labelArray, C.inputs = vectorArray}
 
 -- | Translates an @InputVector@ into the sparse representation expected 
 -- by LibSVM.
