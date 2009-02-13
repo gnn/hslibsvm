@@ -274,8 +274,8 @@ toSparse (InputVector v) = let
 -- @'ForeignPtr C.Parameters'@ by converting internal dataypes to the C 
 -- datatype representations,  allocating the needed arrays and then 
 -- associating the result with a finalizer.
-marshallParameters :: Parameters -> IO (ForeignPtr C.Parameters)
-marshallParameters Parameters {
+marshalParameters :: Parameters -> IO (ForeignPtr C.Parameters)
+marshalParameters Parameters {
   svmType       = t, 
   kernelType    = k, 
   degree        = d, 
@@ -322,9 +322,9 @@ marshallParameters Parameters {
 -- the given training data and parameters.
 -- Throws a @'userError'@ if the @'Parameters'@ are deemed infeasible.
 train :: Trainable i => i -> Parameters -> IO Model
-train i parameters = let input = trainingInput i in do
-  problem <- handover input >>= new
-  c_parameters <- marshallParameters parameters
+train input parameters = do
+  problem <- marshalInput input >>= new
+  c_parameters <- marshalParameters parameters
   model <- withForeignPtr c_parameters $ \p -> do
     check <- C.check_parameters problem p 
     if check == nullPtr 
