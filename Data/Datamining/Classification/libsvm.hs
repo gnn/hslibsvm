@@ -82,9 +82,11 @@ data LabeledInput = LabeledInput {
 -- | The type of input used to train a support vector machine.
 type TrainingInput = [LabeledInput]
 
--- | LibSVM considers only @double@s as labels. If you want to do regression
--- just use the input's target value as a label while for classification you
--- should use the integer representing the class label as the label.
+-- | The type of labels used by LibSVM. 
+-- Internally LibSVM just uses @double@s as labels.
+-- The intended meaning is that, for regression the label should be 
+-- the input's target value, while for classification the label
+-- should be an integer representing the class label.
 type Label = Double
 
 -- | Labels an input vector.
