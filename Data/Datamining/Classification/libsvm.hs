@@ -24,7 +24,7 @@ module Data.Datamining.Classification.LibSVM(
   -- ** Model
 , Model
   -- * SVM Functions
-, train, save
+, train, load, save
 ) where
 
 --------------------------------------------------------------------------------
@@ -340,3 +340,10 @@ save (Model modelPointer) destination =
       "'returned failed with " ++ show code)
     (withForeignPtr modelPointer $ (C.save_model p))
 
+-- | Loads a model from a file.
+-- Throws a @'userError'@ if loading fails.
+load :: FilePath -> IO Model
+load source = withCString source $ \p -> throwIfNull
+    ("in load: loading model from file '" ++ source ++ "' failed")
+    (C.load_model p) >>= 
+  newForeignPtr C.finalizeModel >>= return . Model
