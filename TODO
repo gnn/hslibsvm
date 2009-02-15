@@ -5,6 +5,12 @@ General:
     Or maybe use the convertible package...
     See the ANN: convertible thread on the haskell mailing list for details
 
+  - Have a closer look at the imported functions and make those which are
+    referentially transparent return values which are not wrapped in the 
+    IO Monad.
+
+  - Proofread haddock.
+
 Tests:
   - Add a test to ensure that fromBool maps True to 1, since the README
     of LibSVM states that is uses exactly this convention.
