@@ -25,26 +25,23 @@ module Data.Datamining.Classification.LibSVM(
 , Model
   -- * SVM Functions
   -- ** Training
-
---, cross_validation 
+, accuracy
+, crossvalidate
 , train   
-
   -- ** Serialization
 , load
 , save
-
   -- ** Model Querying 
 
---, check_probability_model
---, get_labels
---, get_nr_class
---, get_svm_type
---, get_svr_probability
+, labels
+, countClasses 
+, trainedType
+, svrProbability
 
   -- ** Prediction
+, decisionValues
 , predict
---, predict_values
---, predict_probability
+, probabilities
 
 ) where
 
@@ -269,6 +266,20 @@ newtype Model = Model (ForeignPtr C.Model)
 -- Convenience Functions
 --------------------------------------------------------------------------------
 
+-- | Throws a @'userError'@ constructed with the supplied string, if 
+-- the supplied model doesn't contain probability information.
+checkProbabilities :: Model -> String -> IO ()
+checkProbabilities m@(Model mfp) location = throwIf_ 
+  (not . toBool) 
+  (\_ -> "in " ++ location ++ 
+    ": supplied model doesn't contain probability information")
+  (withForeignPtr mfp C.check_probability_model)
+
+
+-- | A list of SVM types which aren't classification SVMs.
+nonClassifiers :: [C.SVMType]
+nonClassifiers = [oneClass, epsilonSVR, nuSVR]
+
 -- | Translates instances of class @'Trainable'@ into the problem format 
 -- suitable as input for LibSVM's 'C.train' function.
 marshalInput :: Trainable i => i -> IO C.Problem
@@ -381,6 +392,142 @@ load source = withCString source $ \p -> throwIfNull
 -- For a regression model, the function value of x calculated using 
 -- the model is returned. For an one-class model, +1 or -1 is returned. 
 predict :: SVMInput input => Model -> input -> IO Label
-predict (Model modelFP) input = withForeignPtr modelFP $ \modelP -> do
+predict (Model modelFP) input = withForeignPtr modelFP $ \modelP ->
   withArray (toSparse input) (C.predict modelP) >>= return . realToFrac
+
+-- | Conducts cross validation. 
+-- @crossvalidate input parameters n@ target separates input into @n@ folds. 
+-- Using the given @parameters@, sequentially each fold is predicted using
+-- the model from training with the remaining folds. 
+-- Thus all the input vectors are predicted once and the list of predicted 
+-- labels is returned.
+crossvalidate :: Trainable i => i -> Parameters -> Int -> IO [Double]
+crossvalidate i p n = let 
+  size = length $ trainingInput i 
+  cn = fromIntegral n in do
+  problem <- marshalInput i
+  parameters <- marshalParameters p
+  with problem $ \problemP -> 
+    withForeignPtr parameters $ \parametersP -> 
+      allocaArray size $ \buffer ->
+        C.cross_validation problemP parametersP cn buffer >>
+        peekArray size buffer >>= return . map realToFrac
+
+-- | Computes the accuracy gained by training with the given @parameters@.
+-- @accuracy input parameters n@ calls @'crossvalidate'@ with the given
+-- arguments and computes the accuracy from the result. The accuracy is the
+-- percentage of the labels predicted correctly.
+accuracy :: Trainable i => i -> Parameters -> Int -> IO Double
+accuracy i p n = let 
+  labels = map getLabel $ trainingInput i
+  maximum = fromIntegral $ length labels in do
+  predicted <- crossvalidate i p n
+  let hits = fromIntegral $ length $ filter (id) $ zipWith (==) labels predicted
+  return $! hits * 100 / maximum
+
+-- | @'countClasses model'@ returns the number of classes of the 
+-- classification model @model@. Returns 2 if @model@ is a regression
+-- or a one-class model.
+countClasses :: Model -> IO Int
+countClasses (Model m) = 
+  withForeignPtr m C.get_nr_class >>= return . fromIntegral
+
+-- | Returns the @'C.SVMType'@ of the model.
+trainedType :: Model -> IO C.SVMType
+trainedType (Model m) = withForeignPtr m C.get_svm_type
+
+-- | @'labels model'@ returns a list with the labels present in the given
+-- @model@. If @model@ is a one-class or a regression model then the 
+-- empty list is returned.
+labels :: Model -> IO [Int]
+labels m@(Model mfp) = do
+  t <- trainedType m
+  if t `elem` nonClassifiers 
+    then return [] 
+    else do 
+      classes <- countClasses m
+      withForeignPtr mfp $ \mp -> allocaArray classes $ \ip -> 
+        C.get_labels mp ip >> 
+        peekArray classes ip >>= 
+        return . map fromIntegral
+
+-- | For a regression model with probability information, this function
+-- outputs a value sigma > 0. For test data, we consider the probability
+-- model: 
+--
+-- * @target value = predicted value + z, 
+-- z: Laplace distribution e^(-|z|sigma)(2sigma)@
+--
+-- NOTE: This is copied pretty much verbatim from the LibSVM README and 
+-- I don't really have a clue what it means. If anybody has a good 
+-- explanation, an email would be greatly appreciated and would be used
+-- to clarify this.
+--
+-- Throws a @'userError'@ if the model doesn't contain probability 
+-- information.
+svrProbability :: Model -> IO Double
+svrProbability m@(Model mfp) = withForeignPtr mfp $ \mp ->
+  checkProbabilities m "svrProbability" >>
+  C.get_svr_probability mp >>= return . realToFrac
+
+-- | Returns decision values for a given test vector and model.
+-- 
+-- For a classification model @decisionValues model x@ 
+-- will return a function which accepts two labels @l1@ and @l2@ as its 
+-- parameters and will return the corresponding decision value for @x@ 
+-- when considering the two class SVM @l1@ vs. @l2@. 
+-- The possible label values can be obtained via @'labels'@.
+--
+-- For a regression model, the returned funcion will be a constant 
+-- function always returning the function value of x calculated using 
+-- the model while for a one-class model it will be the constant function
+-- returning +1 or -1. 
+decisionValues :: SVMInput i => i -> Model -> (Int -> Int -> IO Double)
+decisionValues i m@(Model mfp) l1 l2 = let 
+  f a b = if a < b then (a, b) else (b, a)
+  key = f l1 l2
+  in do
+  t <- trainedType m
+  if t `elem` nonClassifiers 
+    then predict m i
+    else do 
+      ls <- labels m 
+      let l = length ls
+      let n = l * (l - 1) `div` 2
+      results <- mallocForeignPtrArray n
+      withForeignPtr results $ \rp -> withForeignPtr mfp $ \mp -> do
+        withArray (toSparse i) (\a -> C.predict_values mp a rp)
+        dvs <- peekArray n rp >>= return . map realToFrac
+        let 
+          table = zip [f (ls !! i) (ls !! j) | i<-[0..l-2], j<-[i+1..l-1]] dvs
+        return $! 
+          maybe 
+            (error $ "while looking up decision values: " ++
+              "illegal key '" ++ show key ++ "'")
+            id
+            (lookup key table)
+
+-- | If @model@ is a classification model with probability information,
+-- @probabilities model x@ returns a pair @(p, ps)@ where @ps@ is a list
+-- of probabilities such that @(ps !! i)@ is the probability of @x@
+-- beeing labeled with @('labels' model !! i)@ and @p@ is the label with
+-- the maximum probability.
+-- If @model@ belongs to a regression/one-class SVM, @ps = [p]@ and @p@
+-- will be the result of @'predict' model x@.
+-- Throws a @'userError'@ if @model@ is a classification model but 
+-- contains no probability information.
+probabilities :: SVMInput i => Model -> i -> IO (Double, [Double])
+probabilities m@(Model mfp) i = do
+  t <- trainedType m
+  if t `elem` nonClassifiers 
+    then do {p <- predict m i; return $! (p, [p])}
+    else do
+      checkProbabilities m "probabilities"
+      ls <- labels m
+      let l = length ls
+      allocaArray l $ \dp -> withForeignPtr mfp $ \mp -> do
+        withArray (toSparse i) $ \ip -> do
+          p <- C.predict_probability mp ip dp
+          ps <- peekArray l dp
+          return $! (realToFrac p, map realToFrac ps)
 
