@@ -123,7 +123,8 @@ labelList is l = map (flip label l) is
 
 -- | The class of types which can be interpreted as something a support
 -- vector machine can be trained from.
-class Trainable a where trainingInput :: a -> TrainingInput
+class Trainable a where 
+  trainingInput :: a -> TrainingInput
 
 instance (SVMInput i) => Trainable [(Label, [i])] where 
   trainingInput = concatMap $ (uncurry . flip) labelList
