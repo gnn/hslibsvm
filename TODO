@@ -5,10 +5,6 @@ General:
     Or maybe use the convertible package...
     See the ANN: convertible thread on the haskell mailing list for details
 
-  - Have a closer look at the imported functions and make those which are
-    referentially transparent return values which are not wrapped in the 
-    IO Monad.
-
   - Proofread haddock.
 
 Tests:
