@@ -1,6 +1,15 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
 --------------------------------------------------------------------------------
--- | This module contains the translation of LibSVM's C interface to haskell.
+-- | 
+-- Module       : Data.Datamining.Classification.LibSVM.C
+-- Copyright    : (c) 2009 Stephan Günther
+-- License      : BSD3
+--
+-- Maintainer   : gnn.github@gmail.com
+-- Stability    : experimental
+-- Portability  : portable (requires FFI)
+--
+-- This module contains the translation of LibSVM's C interface to haskell.
 -- It is mostly a literal translation, so anyone who wants to build his own
 -- high level interface to LibSVM can do this using this module.
 -- For every exported entity the name of the corresponding C entity is included

@@ -1,8 +1,19 @@
 {-# LANGUAGE FlexibleInstances #-}
 --------------------------------------------------------------------------------
--- | This module contains an attempt to provide a more convenient interface to
+-- |  
+-- Module       : Data.Datamining.Classification.LibSVM
+-- Copyright    : (c) 2009 Stephan Günther
+-- License      : BSD3
+--
+-- Maintainer   : gnn.github@gmail.com
+-- Stability    : experimental
+-- Portability  : portable (requires FFI, FlexibleInstances)
+--
+-- This module contains an attempt to provide a more convenient interface to
 -- LibSVM than the one gained by just using the translation of the
--- C interface.
+-- C interface. It still mostly just mirrors the interface provided by 
+-- LibSVM but takes care of memory management, type conversion and gives a 
+-- little bit more flexibility concerning input throug the use of typeclasses.
 --------------------------------------------------------------------------------
 
 module Data.Datamining.Classification.LibSVM(
