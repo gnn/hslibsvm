@@ -483,14 +483,12 @@ svrProbability m@(Model mfp) = withForeignPtr mfp $ \mp ->
 -- function always returning the function value of x calculated using 
 -- the model while for a one-class model it will be the constant function
 -- returning +1 or -1. 
-decisionValues :: SVMInput i => i -> Model -> (Int -> Int -> IO Double)
-decisionValues i m@(Model mfp) l1 l2 = let 
-  f a b = if a < b then (a, b) else (b, a)
-  key = f l1 l2
-  in do
+decisionValues :: SVMInput i => i -> Model -> IO (Int -> Int -> Double)
+decisionValues i m@(Model mfp) = let 
+  f a b = if a < b then (a, b) else (b, a) in do
   t <- trainedType m
   if t `elem` nonClassifiers 
-    then predict m i
+    then do {result <- predict m i; return $! (\_ _ -> result)} 
     else do 
       ls <- labels m 
       let l = length ls
@@ -501,7 +499,7 @@ decisionValues i m@(Model mfp) l1 l2 = let
         dvs <- peekArray n rp >>= return . map realToFrac
         let 
           table = zip [f (ls !! i) (ls !! j) | i<-[0..l-2], j<-[i+1..l-1]] dvs
-        return $! 
+        return $! \l1 l2 -> let key = f l1 l2 in 
           maybe 
             (error $ "while looking up decision values: " ++
               "illegal key '" ++ show key ++ "'")
