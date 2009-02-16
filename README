@@ -1,10 +1,66 @@
-This is a haskell binding to "LIBSVM -- A Library for Support Vector Machines"
-which is obtainable throug their website: 
+
+= README
+
+This is the README file to hslibsvm, a haskell binding to
+
+  "LIBSVM -- A Library for Support Vector Machines"
+
+which is obtainable through its website: 
   http://www.csie.ntu.edu.tw/~cjlin/libsvm
+
+
+== License
+
 The library is itself written in C++ with its interface exposed via C. 
 You need to have the library installed for this binding to be install work 
 correctly.
-LibSVM itself and this binding are licensed under a modified BSD-Style license.
-You should have received a LICENSE file along with this source code.
-All the code contained in this bundles is licensed under that license.
+LibSVM and this binding are licensed under the BSD 3 clause license.
+You should have received a file named LICENSE along with this source code.
+All the code contained in this bundle is licensed under the license 
+conatained in that file.
 
+== Version
+
+This is hslibsvm version 2.88.0.1. 
+If hslibsvm has the version (*).X.Y, this means that (*) mirrors the 
+version of LibSVM this binding corresponds to while X and Y give 
+information about hslibsvm. Changes in Y correspond to added functionality,
+documentation updates and generally backwards compatible changes.
+Changes in X generally correspond to interface changes which might break
+compatibility with erlier versions.
+
+== Installation
+
+You need LibSVM 2.88 installed to use this binding.
+
+Mac OS X Tiger: On Mac OS X Tiger this binding has been tested and found 
+working fine with the MacPorts version of LibSVM.
+
+Windows: On windows things are a little bit trickier and have only been 
+tested with Cygwin and MinGW/MSys. First you need to download and unpack
+LibSVM. After that use the Cygwin/MSys shell to change to the directory
+of the unpacked files and type 'make'. This should generate a file svm.o.
+Now type 'ar rc libsvm.a svm.o && ranlib libsvm.a', which should generate
+the file libsvm.a.
+Now copy that file to a location where you can find it (*nix standard would
+be /usr/local/lib and copy svm.h to a path where you can find it to (*nix
+standard would be /usr/local/include). Or just leave the files where they
+are, if you don't mind keeping the directory where you unarchived LibSVM
+around.
+After doing this you should be able to install hslibsvm with the command:
+
+cabal install \
+--extra-include-dirs=path-to-svm.h \
+--extra-lib-dirs=path-to-libsvm.a
+
+Note that for Cygwin you need to specify the paths as absolute windows
+paths with a leading drive letter.
+
+Linux: You're on your own here. Sorry.
+
+== Bugs, Suggestions, Stuff...
+
+If you find any bugs or you have any suggestions contact me at
+gnn.github at gmail dot com.
+This is my first cabal package so if I made any errors I definitely
+would like to know them so I can correct them and learn from them.
