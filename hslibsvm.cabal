@@ -16,7 +16,7 @@ Description:
   See the README for details.
 
 Library
-  Build-Depends:    base, containers, rts 
+  Build-Depends:    base, containers
   Exposed-Modules:  Data.Datamining.Classification.LibSVM.C,
                     Data.Datamining.Classification.LibSVM
   Extensions:       FlexibleInstances, ForeignFunctionInterface
