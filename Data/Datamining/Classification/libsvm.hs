@@ -63,6 +63,7 @@ module Data.Datamining.Classification.LibSVM(
 import Control.Exception
 import Control.Monad
 import Data.List
+import Data.Maybe
 import qualified Data.Map as Map
 import qualified Data.IntMap as IMap
 import Foreign.C.String
@@ -102,7 +103,7 @@ class SVMInput a where
   inputVector :: a -> InputVector
 
 instance Real a => SVMInput [a] where
-  inputVector = InputVector . map (realToFrac)
+  inputVector = InputVector . map realToFrac
 
 instance SVMInput LabeledInput where
   inputVector = getVector
@@ -386,15 +387,15 @@ save (Model modelPointer) destination =
   withCString destination $ \p -> throwIfNeg_
     (\code -> "in save: saving model to '" ++ destination ++ 
       "'returned failed with " ++ show code)
-    (withForeignPtr modelPointer $ (C.save_model p))
+    (withForeignPtr modelPointer $ C.save_model p)
 
 -- | Loads a model from a file.
 -- Throws a @'userError'@ if loading fails.
 load :: FilePath -> IO Model
-load source = withCString source $ \p -> throwIfNull
+load source = withCString source $ \p -> liftM Model (throwIfNull
     ("in load: loading model from file '" ++ source ++ "' failed")
     (C.load_model p) >>= 
-  newForeignPtr C.finalizeModel >>= return . Model
+  newForeignPtr C.finalizeModel)
 
 -- | Classifies the input.
 -- @predict model x@ does classification on the input vector @x@ 
@@ -405,7 +406,7 @@ load source = withCString source $ \p -> throwIfNull
 -- the model is returned. For an one-class model, +1 or -1 is returned. 
 predict :: SVMInput input => Model -> input -> IO Label
 predict (Model modelFP) input = withForeignPtr modelFP $ \modelP ->
-  withArray (toSparse input) (C.predict modelP) >>= return . realToFrac
+  liftM realToFrac (withArray (toSparse input) (C.predict modelP))
 
 -- | Conducts cross validation. 
 -- @crossvalidate input parameters n@ target separates input into @n@ folds. 
@@ -422,8 +423,9 @@ crossvalidate i p n = let
   with problem $ \problemP -> 
     withForeignPtr parameters $ \parametersP -> 
       allocaArray size $ \buffer ->
-        C.cross_validation problemP parametersP cn buffer >>
-        peekArray size buffer >>= return . map realToFrac
+        liftM (map realToFrac) (
+          C.cross_validation problemP parametersP cn buffer >>
+          peekArray size buffer)
 
 -- | Computes the accuracy gained by training with the given @parameters@.
 -- @accuracy input parameters n@ calls @'crossvalidate'@ with the given
@@ -434,7 +436,7 @@ accuracy i p n = let
   labels = map getLabel $ trainingInput i
   maximum = fromIntegral $ length labels in do
   predicted <- crossvalidate i p n
-  let hits = fromIntegral $ length $ filter (id) $ zipWith (==) labels predicted
+  let hits = fromIntegral $ length $ filter id $ zipWith (==) labels predicted
   return $! hits * 100 / maximum
 
 -- | @'countClasses model'@ returns the number of classes of the 
@@ -442,7 +444,7 @@ accuracy i p n = let
 -- or a one-class model.
 countClasses :: Model -> IO Int
 countClasses (Model m) = 
-  withForeignPtr m C.get_nr_class >>= return . fromIntegral
+  liftM fromIntegral (withForeignPtr m C.get_nr_class)
 
 -- | Returns the @'C.SVMType'@ of the model.
 trainedType :: Model -> IO C.SVMType
@@ -459,9 +461,8 @@ labels m@(Model mfp) = do
     else do 
       classes <- countClasses m
       withForeignPtr mfp $ \mp -> allocaArray classes $ \ip -> 
-        C.get_labels mp ip >> 
-        peekArray classes ip >>= 
-        return . map fromIntegral
+        liftM (map fromIntegral) 
+          (C.get_labels mp ip >> peekArray classes ip)
 
 -- | For a regression model with probability information, this function
 -- outputs a value sigma > 0. For test data, we consider the probability
@@ -478,9 +479,8 @@ labels m@(Model mfp) = do
 -- Throws a @'userError'@ if the model doesn't contain probability 
 -- information.
 svrProbability :: Model -> IO Double
-svrProbability m@(Model mfp) = withForeignPtr mfp $ \mp ->
-  checkProbabilities m "svrProbability" >>
-  C.get_svr_probability mp >>= return . realToFrac
+svrProbability m@(Model mfp) = withForeignPtr mfp $ \mp -> liftM realToFrac 
+ (checkProbabilities m "svrProbability" >> C.get_svr_probability mp)
 
 -- | Returns decision values for a given test vector and model.
 -- 
@@ -507,14 +507,13 @@ decisionValues i m@(Model mfp) = let
       results <- mallocForeignPtrArray n
       withForeignPtr results $ \rp -> withForeignPtr mfp $ \mp -> do
         withArray (toSparse i) (\a -> C.predict_values mp a rp)
-        dvs <- peekArray n rp >>= return . map realToFrac
+        dvs <- liftM (map realToFrac) (peekArray n rp)
         let 
           table = zip [f (ls !! i) (ls !! j) | i<-[0..l-2], j<-[i+1..l-1]] dvs
         return $! \l1 l2 -> let key = f l1 l2 in 
-          maybe 
+          fromMaybe 
             (error $ "while looking up decision values: " ++
               "illegal key '" ++ show key ++ "'")
-            id
             (lookup key table)
 
 -- | If @model@ is a classification model with probability information,
@@ -535,7 +534,7 @@ probabilities m@(Model mfp) i = do
       checkProbabilities m "probabilities"
       ls <- labels m
       let l = length ls
-      allocaArray l $ \dp -> withForeignPtr mfp $ \mp -> do
+      allocaArray l $ \dp -> withForeignPtr mfp $ \mp -> 
         withArray (toSparse i) $ \ip -> do
           p <- C.predict_probability mp ip dp
           ps <- peekArray l dp
