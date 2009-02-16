@@ -1,5 +1,5 @@
 Name:               hslibsvm
-Version:            2.88
+Version:            2.88.0.1
 Cabal-Version:      >= 1.6.0.1
 Build-Type:         Simple
 License:            BSD3
@@ -10,15 +10,16 @@ Maintainer:         Stephan Günther <gnn.github@gmail.com>
 Category:           Datamining, Classification
 Synopsis:           A FFI binding to libsvm.
 Description:
-  This is a FFI binding to libsvm. The version number represents the version
-  of libsvm this binding corresponds to. Further information on libsvm can
-  be found on its website: <http://www.csie.ntu.edu.tw/~cjlin/libsvm/>.
+  This is a FFI binding to LibSVM. It corresponds to LibSVM version 2.88.  
+  Further information on LibSVM can be found on its website: 
+  <http://www.csie.ntu.edu.tw/~cjlin/libsvm/>.
+  See the README for details.
 
 Library
   Build-Depends:    base, containers, rts 
   Exposed-Modules:  Data.Datamining.Classification.LibSVM.C,
                     Data.Datamining.Classification.LibSVM
-  GHC-Options:     
-  Extensions:       ForeignFunctionInterface
+  Extensions:       FlexibleInstances, ForeignFunctionInterface
   Includes:         svm.h
-  Extra-Libraries:  svm
+  Extra-Libraries:  stdc++, svm
+  
