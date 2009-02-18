@@ -82,6 +82,9 @@ module Data.Datamining.Classification.LibSVM.C (
 --------------------------------------------------------------------------------
 -- Standard Modules
 --------------------------------------------------------------------------------
+
+import Data.Char
+import Data.Maybe
 import Foreign
 import Foreign.C.String
 import Foreign.C.Types
@@ -132,6 +135,19 @@ instance Show SVMType where
     , (nu_svr, "nuSVR")
     ] 
 
+instance Read SVMType where
+  readsPrec d r = [(fromJust . stringToSVMType $ s, t) | (s,t) <- lex r] 
+
+-- | A utility function to convert a String into a SVMType.
+stringToSVMType :: String -> Maybe SVMType
+stringToSVMType s = case map toLower . filter (/= '_') $ s of
+  "csvc" -> Just c_svc
+  "nusvc" -> Just nu_svc
+  "oneclass" -> Just one_class
+  "epsilonsvr" -> Just epsilon_svr
+  "nusvr" -> Just nu_svr
+  _ -> Nothing
+
 #{enum SVMType, SVMType
 , c_svc       = C_SVC
 , nu_svc      = NU_SVC
@@ -152,11 +168,25 @@ instance Show KernelFunction where
       (linear, "linear")
     , (polynomial, "polynomial")
     , (poly, "polynomial")
-    , (radialBasisFunction, "radial basis function")
-    , (rbf, "radial basis function")
+    , (radialBasisFunction, "rbf")
+    , (rbf, "rbf")
     , (sigmoid, "sigmoid")
     , (precomputed, "precomputed")
     ]
+
+instance Read KernelFunction where
+  readsPrec d r = [(fromJust . stringToKernel $ s, t) | (s,t) <- lex r]
+
+-- | A utility function to convert a String into a KernelFunction.
+stringToKernel :: String -> Maybe KernelFunction
+stringToKernel s = case map toLower . filter (/= '_') $ s of
+  "linear" -> Just linear
+  "polynomial" -> Just polynomial
+  "poly" -> Just poly
+  "radialbasisfunction" -> Just radialBasisFunction
+  "rbf" -> Just rbf
+  "sigmoid" -> Just sigmoid 
+  _ -> Nothing
 
 #{enum KernelFunction, KernelFunction
 , linear              = LINEAR
