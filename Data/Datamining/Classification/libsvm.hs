@@ -2,7 +2,7 @@
 --------------------------------------------------------------------------------
 -- |  
 -- Module       : Data.Datamining.Classification.LibSVM
--- Copyright    : (c) 2009 Stephan Günther
+-- Copyright    : (c) 2009 Stephan Günther, Paolo Losi
 -- License      : BSD3
 --
 -- Maintainer   : gnn.github@gmail.com
@@ -67,6 +67,7 @@ import Data.Maybe
 import qualified Data.Map as Map
 import qualified Data.IntMap as IMap
 import Foreign.C.String
+import Foreign.C.Types
 import Foreign.ForeignPtr
 import Foreign.Marshal.Alloc
 import Foreign.Marshal.Array
@@ -87,7 +88,7 @@ import qualified Data.Datamining.Classification.LibSVM.C as C
 
 -- | The type of input vectors (without the labels) used to communicate 
 -- with LibSVM.
-newtype InputVector = InputVector { unInputVector :: [Double]}
+newtype InputVector = InputVector { unInputVector :: [CDouble]}
 
 -- | The class of the types which act as viable input vectors to LibSVM.
 -- For lists of types which are an instance of the type class @'Real'@
@@ -312,7 +313,7 @@ toSparse input = map node result where
   result =  reverse $ (-1, 0) : snd (foldl' f (0, []) v)
   (InputVector v) = inputVector input
   f (c, xs) x = (c + 1, if x == 0 then xs else (c + 1, x) : xs) 
-  node (index, value) = C.Node (fromIntegral index) (realToFrac value)
+  node (index, value) = C.Node (fromIntegral index) value
 
 -- | Translates the type @'Parameters'@ into a value of type 
 -- @'ForeignPtr C.Parameters'@ by converting internal dataypes to the C 
