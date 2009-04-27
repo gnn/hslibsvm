@@ -21,7 +21,7 @@ conatained in that file.
 
 == Version
 
-This is hslibsvm version 2.88.0.1. 
+This is hslibsvm version 2.89.0.1. 
 If hslibsvm has the version (*).X.Y, this means that (*) mirrors the 
 version of LibSVM this binding corresponds to while X and Y give 
 information about hslibsvm. Changes in Y correspond to added functionality,
@@ -31,7 +31,7 @@ compatibility with erlier versions.
 
 == Installation
 
-You need LibSVM 2.88 installed to use this binding.
+You need LibSVM 2.88 or 2.89 installed to use this binding.
 
 Mac OS X Tiger: On Mac OS X Tiger this binding has been tested and found 
 working fine with the MacPorts version of LibSVM.
