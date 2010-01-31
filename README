@@ -29,6 +29,16 @@ documentation updates and generally backwards compatible changes.
 Changes in X generally correspond to interface changes which might break
 compatibility with erlier versions.
 
+== Code
+
+The source code to hslibsvm is available as a darcs repository. If you
+have darcs installed just doing a:
+
+  darcs get http://patch-tag.com/r/gnn/hslibsvm
+
+should put the current sources into a directory called hslibsvm inside
+the current working directory.
+
 == Installation
 
 You need LibSVM 2.88 or 2.89 installed to use this binding.
