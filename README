@@ -42,6 +42,11 @@ the current working directory.
 == Installation
 
 You need LibSVM 2.88, 2.89 or 2.9 installed to use this binding.
+Other than that, hslibsvm is available as cabal package so the easiest
+way to install it is probably by using cabal-install:
+  cabal install hslibsvm
+Note that there can be platform specific quirks. Wherever I know of
+them, they have been outlined below.
 
 Mac OS X Tiger: On Mac OS X Tiger this binding has been tested and found 
 working fine with the MacPorts version of LibSVM.
