@@ -41,7 +41,7 @@ the current working directory.
 
 == Installation
 
-You need LibSVM 2.88 or 2.89 installed to use this binding.
+You need LibSVM 2.88, 2.89 or 2.9 installed to use this binding.
 
 Mac OS X Tiger: On Mac OS X Tiger this binding has been tested and found 
 working fine with the MacPorts version of LibSVM.
