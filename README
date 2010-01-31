@@ -51,7 +51,8 @@ After doing this you should be able to install hslibsvm with the command:
 
 cabal install \
 --extra-include-dirs=path-to-svm.h \
---extra-lib-dirs=path-to-libsvm.a
+--extra-lib-dirs=path-to-libsvm.a \
+hslibsvm
 
 Note that for Cygwin you need to specify the paths as absolute windows
 paths with a leading drive letter.
